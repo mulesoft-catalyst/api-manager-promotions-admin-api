@@ -1,0 +1,161 @@
+{
+	"info": {
+		"_postman_id": "536c9943-983c-413a-ac2b-d57776fbdb09",
+		"name": "APIM Admin API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "POST bulk",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "targetEnvironmentId",
+						"type": "text",
+						"value": "{ChangeMe}"
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "[\n  {\n    \"sourceApiInstanceId\": \"16094435\",\n    \"groupId\": \"185bdbc4-b359-4d57-9238-16719afe02d4\",\n    \"apiAssetId\": \"alerts-api\",\n    \"assetName\": \"alerts-api\",\n    \"version\": \"1.0.0\",\n    \"versionGroup\": \"v1\",\n    \"contracts\": [\n      {\n        \"name\": \"alerts-api-stage\",\n        \"redirectUri\": [],\n        \"grantTypes\": [],\n        \"apiEndpoints\": false\n      }\n    ]\n  },\n  {\n    \"sourceApiInstanceId\": \"16195063\",\n    \"groupId\": \"185bdbc4-b359-4d57-9238-16719afe02d4\",\n    \"apiAssetId\": \"alerts-api\",\n    \"assetName\": \"alerts-api\",\n    \"version\": \"1.0.1\",\n    \"versionGroup\": \"v1\",\n    \"contracts\": []\n  }\n]",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8091/api/apis/configurations/bulk-promotions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8091",
+					"path": [
+						"api",
+						"apis",
+						"configurations",
+						"bulk-promotions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET apis",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "sourceEnvironmentId",
+						"type": "text",
+						"value": "{ChangeMe}"
+					},
+					{
+						"key": "contractSuffixToBeReplaced",
+						"type": "text",
+						"value": "tst"
+					},
+					{
+						"key": "contractSuffixReplacement",
+						"type": "text",
+						"value": "stage"
+					},
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "apiNameIncludeIfContains",
+						"type": "text",
+						"value": "alerts"
+					},
+					{
+						"key": "apiNameExcludeIfStartsWith",
+						"type": "text",
+						"value": "alerts"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8091/api/apis",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8091",
+					"path": [
+						"api",
+						"apis"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET apps",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "includeCredentials",
+						"value": "true",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8091/api/applications",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8091",
+					"path": [
+						"api",
+						"applications"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "DELETE an app",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8091/api/applications/{id}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8091",
+					"path": [
+						"api",
+						"applications",
+						"{id}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"protocolProfileBehavior": {}
+}

@@ -1,0 +1,25 @@
+[
+  {
+    "sourceApiInstanceId": "123",
+    "groupId": "groupId",
+    "apiAssetId": "alerts-api",
+    "version": "1.0.0",
+    "versionGroup": "v1",
+    "contracts": [
+      {
+        "name": "alerts-api-stage",
+        "redirectUri": [],
+        "grantTypes": [],
+        "apiEndpoints": false
+      }
+    ]
+  },
+  {
+    "sourceApiInstanceId": "124",
+    "groupId": "groupId",
+    "apiAssetId": "alerts-api",
+    "version": "1.0.1",
+    "versionGroup": "v1",
+    "contracts": []
+  }
+]

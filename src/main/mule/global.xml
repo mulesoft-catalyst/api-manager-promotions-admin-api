@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+	<http:request-config name="anypoint-http-request-configuration" doc:name="HTTP Request configuration" doc:id="ee0f2021-42ab-4855-9c18-5be7ca76600f" enableCookies="false">
+		<http:request-connection protocol="HTTPS" host="${anypoint.platform.apis.host}" port="${anypoint.platform.apis.port}" connectionIdleTimeout="60000"/>
+	</http:request-config>	
+	<global-property doc:name="global-property" doc:id="6499b706-3a49-40ee-85b6-0ebeeb65abf2" name="mule.env" value="dev" />
+	<global-property doc:name="global-property-key" doc:id="68ab0340-231c-426d-a74d-0106a21fc442" name="encryption.key"
+		value="thisshouldbeakey" />
+	<configuration-properties doc:name="configuration-properties" doc:id="e734e60d-231e-4318-9571-0b263a5c4965" file="env/${mule.env}/${mule.env}.properties" />
+	<secure-properties:config name="secure-properties-config" doc:name="secure-properties-config" doc:id="a9c0f097-f865-41f6-99b8-4c7063513c3f" file="env/${mule.env}/secure.${mule.env}.properties" key="${encryption.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<ee:object-store-caching-strategy name="Expirable-cache-strategy" doc:name="Caching Strategy" doc:id="e1be4a09-748b-4a94-900f-5a22675ffe66" >
+	</ee:object-store-caching-strategy>
+	<http:listener-config name="http-listener-config">
+        <http:listener-connection host="0.0.0.0" port="${http.private.port}" />
+    </http:listener-config>
+    <apikit:config name="anypoint-api-manager-admin-panel-api-config" api="api/anypoint-api-manager-admin-panel-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    
+    <api-gateway:autodiscovery apiId="${api.id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="d751da6e-1981-4b73-bf0a-c9ff680d96fc" flowRef="anypoint-api-manager-admin-panel-api-main" />
+	<sub-flow name="authentication-subflow" doc:id="a1392deb-1d8f-4915-91cd-8c65af38664e" >
+		<logger message="Log in to Anypoint Platform" level="INFO" doc:name="Log - Login to anypoint" />
+		<choice doc:name="Is token already stored?" doc:id="5148611e-62d0-43e0-bb7e-7465fde2dbcd" >
+			<when expression="#[vars.loginResponse == null]">
+				<ee:transform doc:name="Build Login Request" doc:id="8c410cdd-1970-47f3-9bc2-0d2aa20bc225">
+			<ee:message>
+				<ee:set-payload resource="dataweave/anypoint/platform/build-login-request.dwl" />
+			</ee:message>
+		</ee:transform>
+				<http:request path="/accounts/login" method="POST" doc:name="POST /accounts/login" config-ref="anypoint-http-request-configuration">
+				<http:headers><![CDATA[#[output application/java
+---
+{
+	"Content-Type" : "application/json"
+}]]]></http:headers>
+			</http:request>
+				<ee:transform doc:name="Transform Login Response" doc:id="cb548f0f-84bf-4de0-ba78-8baae48e9d3f">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable resource="dataweave/anypoint/platform/transform-login-response.dwl" variableName="loginResponse" />
+			</ee:variables>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="DEBUG" doc:name="Log - Token stored" doc:id="953e6cc1-073f-40f1-9341-d2f497f7c1cf" message="Token stored in object store"/>
+			</otherwise>
+		</choice>
+	</sub-flow>	
+	<sub-flow name="get-apis-subflow" doc:id="e50977d2-9bf2-4315-acd8-5b8928ca4284" >
+		<ee:transform doc:name="offset" doc:id="88be4570-9ce9-4afd-ae38-accb5b70e866" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable resource="dataweave/common/save-offset-var.dwl" variableName="offset" />
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="GET /apis" doc:id="27bc497f-a001-4aac-97d8-1bdf45ca9571" config-ref="anypoint-http-request-configuration" path="/apimanager/api/v1/organizations/{orgId}/environments/{envId}/apis">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	envId : vars.environmentId,
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+					<http:query-params ><![CDATA[#[output application/java
+---
+{
+	offset : vars.offset
+}]]]></http:query-params>
+			<http:response-validator >
+						<http:success-status-code-validator values="200..599" />
+					</http:response-validator>
+		</http:request>
+		<flow-ref doc:name="Call paginated apis" doc:id="f7e1d09c-3995-4057-aa4e-88b9e946a008" name="call-paginated-apis-if-required-subflow"/>
+	</sub-flow>
+	<sub-flow name="call-paginated-apis-if-required-subflow" doc:id="d214dec5-6b50-4dde-929e-2c9211a6750a" >
+		<ee:transform doc:name="apisTotalObtained" doc:id="a7a05988-d166-4ced-925e-86301d1cf398" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable resource="dataweave/common/save-apis-obtained.dwl" variableName="apisTotalObtained" />
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Are there remaining apis?" doc:id="11d15e45-1ce9-4fc1-bad4-5a5753fff7ce" >
+			<when expression="#[vars.apisTotalObtained != payload.total]">
+				<ee:transform doc:name="aggregatedAPIPayload" doc:id="aa1c3c82-9ac2-466d-b38c-7a229e2662b2">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable resource="dataweave/common/save-aggregated-api-payload-var.dwl" variableName="aggregatedAPIPayload" />
+					</ee:variables>
+				</ee:transform>
+				<set-variable value="#[vars.offset + 100]" doc:name="offset" doc:id="964ea8b9-f031-4fcb-962d-3ef3568cf0bb" variableName="offset"/>
+				<flow-ref doc:name="Get more apis" doc:id="621a92fc-8627-4430-ac63-304d8c5fbef5" name="get-apis-subflow"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="No remaining APIs" doc:id="6cd86044-e350-4e6e-b56d-aa044501cf26" message="No remaining APIs"/>
+				<ee:transform doc:name="aggregatedAPIPayload as Payload" doc:id="fa8ac0f6-c4fe-4693-b257-3522f922521b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+if (vars.aggregatedAPIPayload == null) payload.assets
+else (vars.aggregatedAPIPayload ++ payload.assets)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="get-contracts-by-api-subflow" doc:id="53be0e62-fe76-4479-9130-157930764a15">
+		<http:request method="GET" doc:name="GET /contracts/apiId" doc:id="fe02c15c-7a62-49e5-af53-4ff33f06bc7c" config-ref="anypoint-http-request-configuration" path="apimanager/api/v1/organizations/{orgId}/environments/{envId}/apis/{apiInstanceId}/contracts">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	apiInstanceId : vars.apiInstanceId,
+	envId : vars.environmentId,
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+			<http:response-validator >
+				<http:success-status-code-validator values="200..599" />
+			</http:response-validator>
+		</http:request>
+	</sub-flow>
+	<sub-flow name="get-apps-from-anypoint-subflow" doc:id="e9d0ccc4-8d45-46dd-ad1e-b1ac653ace9c" >
+		<http:request path="/apiplatform/repository/v2/organizations/{orgId}/applications" method="GET" doc:name="GET /applications" config-ref="anypoint-http-request-configuration">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"apiInstanceId" : vars.app.apiInstanceId
+}]]]></http:query-params>
+			<http:response-validator>
+				<http:success-status-code-validator values="200..599" />
+			</http:response-validator>
+		</http:request>
+	</sub-flow>
+</mule>

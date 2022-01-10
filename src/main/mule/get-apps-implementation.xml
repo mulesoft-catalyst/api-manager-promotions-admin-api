@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+	<sub-flow name="get-apps-sub-flow" doc:id="14747369-4763-40ea-8a26-8d2b0324e8b8">
+		<logger level="INFO" doc:name="Starting" doc:id="1220af27-5398-4a02-bded-bc041bb3c85b" message="Starting..." />
+		<ee:transform doc:name="Variables" doc:id="4516e3d3-b91a-42e0-887e-bd40e3097b2c">
+			<ee:variables>
+				<ee:set-variable resource="dataweave/apis/initialize-org-id.dwl" variableName="organizationId" />
+				<ee:set-variable resource="dataweave/apps/save-include-credentials-filter-as-var.dwl" variableName="includeCredentials" />
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Authentication" doc:id="7df9bb21-ce48-47ba-ba74-f812c4c47d94" name="authentication-subflow" />
+		<flow-ref doc:name="Get apps" doc:id="db1b3c8d-cf10-47a7-aea0-037d11e52d4f" name="get-apps-from-anypoint-subflow" />
+		<choice doc:name="Do we have apps?" doc:id="f61b460b-f7bd-48ab-aa15-f66f2284ffa6">
+			<when expression="#[attributes.statusCode == 200 and ((sizeOf(payload.applications)) &gt; 0)]">
+				<ee:transform doc:name="applications" doc:id="7e8b5085-4f48-442d-b458-eaf3733cdf9c">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/apps/obtain-apps-info-as-var.dwl" variableName="applications" />
+					</ee:variables>
+				</ee:transform>
+				<flow-ref doc:name="Aggregate credentials" doc:id="bf887baf-35d0-49de-a9f6-7d6c3b02d3e6"
+					name="aggregate-app-credentials-subflow" />
+				<ee:transform doc:name="response as JSON" doc:id="f4d9a868-0158-4f9e-afb7-5a9d4a669af5">
+					<ee:message>
+						<ee:set-payload resource="dataweave/apps/return-response-as-json-payload.dwl" />
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="No apps" doc:id="aa104c8b-c9d5-475f-95a7-71a699d9b035" message="No apps found" />
+				<ee:transform doc:name="Response message" doc:id="72377490-5ad7-4e6f-9932-c1dcfd602085">
+					<ee:message>
+						<ee:set-payload resource="dataweave/apis/no-apis-found-response.dwl" />
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Finish" doc:id="90d5b576-9fa9-4b27-874c-9449af57f67d" message="Finish" />
+	</sub-flow>
+	<sub-flow name="aggregate-app-credentials-subflow" doc:id="8ed0b249-8b77-4890-9e4e-9d8dd0d1487f">
+		<choice doc:name="Choice" doc:id="0784d8ff-5be6-446b-ba4d-fe8a9672fafa">
+			<when expression="#[vars.includeCredentials]">
+				<parallel-foreach doc:name="For Each app" doc:id="030894c9-4ee1-4c37-95c7-2434d52fd8da" collection="#[vars.applications]">
+					<http:request path="/apiplatform/repository/v2/organizations/{orgId}/applications/{applicationId}" method="GET"
+						doc:name="GET /applications/appId" config-ref="anypoint-http-request-configuration">
+						<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+						<http:uri-params><![CDATA[#[output application/java
+---
+{
+	applicationId : payload.id,
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+						<http:response-validator>
+							<http:success-status-code-validator values="200..599" />
+						</http:response-validator>
+					</http:request>
+					<ee:transform doc:name="payload with credentials" doc:id="cfce1a97-14ca-4777-b754-06a2ef446488" >
+						<ee:message >
+							<ee:set-payload resource="dataweave/apps/payload-with-credentials-aggregated.dwl" />
+						</ee:message>
+					</ee:transform>
+				</parallel-foreach>
+				<ee:transform doc:name="applications" doc:id="a4518b4f-476d-47bd-a6f7-2bdda726b539" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable resource="dataweave/apps/save-applications-with-credentials-as-var.dwl" variableName="applications" />
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="No credentials needed" doc:id="81cca3b8-42e7-4d15-b952-c083b5655fc5"
+					message="No need for credentials" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

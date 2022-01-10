@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+
+
+	<sub-flow name="bulk-load-api-configs-subflow" doc:id="a07cffe4-5a0e-49fe-a401-bb64f1eca321">
+		<logger level="INFO" doc:name="Starting" doc:id="c71ded58-6594-4f41-b7b9-8c6d5deeb165" message="Starting..." />
+		<set-variable value='#[attributes.headers.targetenvironmentid]' doc:name="bulkTargetEnvironmentId"
+			doc:id="defcf9cc-638e-4eab-96fb-fbe402751151" variableName="bulkTargetEnvironmentId" />
+		<ee:transform doc:name="originalPayload" doc:id="5624a456-e201-4ab1-956c-d727b9c6da8d">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dataweave/common/save-original-payload.dwl" variableName="originalPayload" />
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Authentication" doc:id="5a1ad225-ac64-4e4f-9f7d-434270cc299f" name="authentication-subflow" />
+		<ee:transform doc:name="Variables" doc:id="cff5525e-1bd0-494d-9652-555e9147f0f9">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dataweave/bulk/initialize-results.dwl" variableName="results" />
+				<ee:set-variable resource="dataweave/bulk/initialize-org-id.dwl" variableName="organizationId" />
+				<ee:set-variable resource="dataweave/bulk/initialize-environment-id.dwl" variableName="environmentId" />
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Get apis in target env" doc:id="18dde353-ed0d-4095-b457-6f3a687e714f" name="get-apis-subflow" />
+		<ee:transform doc:name="apis collection" doc:id="a3e13ce4-14c4-4e44-aa1b-31fcd78a0617">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dataweave/bulk/collect-apis.dwl" variableName="apis" />
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Create configs" doc:id="fd7cc366-a6b9-4b67-9503-29e13c9a26be" name="create-apps-config-sub-flow" />
+		<ee:transform doc:name="200 httpStatus" doc:id="b6d39b6c-4da0-47f5-86c0-71dc4788b4b8">
+			<ee:message>
+				<ee:set-payload resource="dataweave/bulk/return-results.dwl" />
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="httpStatus"><![CDATA[%dw 2.0
+output application/java
+---
+200]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Finish" doc:id="0822b627-2f38-40d4-a3bb-112b0ec23589" message="Finish" />
+	</sub-flow>
+
+	<sub-flow name="create-apps-config-sub-flow" doc:id="71c1f11f-a9ab-4eb2-993e-0a2422aa98e2">
+		<foreach doc:name="For Each API in APIM" doc:id="7b8d9f97-e0e9-4683-bf83-6a08857a9183"
+			collection="#[vars.originalPayload]">
+			<!-- <try doc:name="Try" doc:id="d916a1eb-9ad9-4478-b138-74ad0c4afd27" > -->
+				<ee:transform doc:name="app" doc:id="57c24ac1-1600-4436-8814-a83075755e59">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable resource="dataweave/bulk/save-contracts-in-var.dwl" variableName="contract" />
+					<ee:set-variable resource="dataweave/bulk/save-app-iteration.dwl" variableName="app" />
+					<ee:set-variable resource="dataweave/apis/app-cred-null.dwl" variableName="appCredentials" />
+				</ee:variables>
+			</ee:transform>
+				<flow-ref doc:name="API promotion" doc:id="00df4093-7cde-4777-8f56-899c8614c048" name="api-promotion-sub-flow" />
+				<choice doc:name="API exists?" doc:id="736eb44c-1841-4a77-8199-e2c5a5bdce49">
+				<when expression="#[vars.apiExists]">
+					<foreach doc:name="For Each contract" doc:id="703632ee-97dd-4c14-80f4-eaf4bfcb8192" collection="#[vars.app.contracts]">
+						<ee:transform doc:name="contract" doc:id="65a5925e-38d3-4b0e-8f74-376cbe2c8139">
+							<ee:message>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable resource="dataweave/bulk/save-contract-as-var.dwl" variableName="contract" />
+							</ee:variables>
+						</ee:transform>
+						<flow-ref doc:name="Contract creation process" doc:id="eba067b3-4ff4-422f-b2c3-3c82e6965d54" name="contract-creation-subflow" />
+							<!-- <ee:transform doc:name="Retrieve results as payload" doc:id="e714a249-60f0-40e0-8b81-39504e4e24e6">
+								<ee:message>
+									<ee:set-payload resource="dataweave/bulk/var-results-as-payload.dwl" />
+								</ee:message>
+							</ee:transform> -->
+					</foreach>
+						<!-- <ee:transform doc:name="Store results of parallel processing as var" doc:id="b70eabfe-a487-47ed-99ff-5ec87b0b2005">
+							<ee:message>
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable resource="dataweave/bulk/store-in-results-parallel-processing-success.dwl" variableName="results" />
+							</ee:variables>
+						</ee:transform> -->
+				</when>
+					<otherwise>
+					<logger level="INFO" doc:name="API does not exist" doc:id="13a7f783-633e-46da-b4a8-9523c3a9adae" message="API did not exist or was not created successfully" />
+					<ee:transform doc:name="results" doc:id="991e14dc-9e51-4e09-b97d-c8ba12124f4e">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable resource="dataweave/bulk/update-results-var-failed-api-promotion.dwl" variableName="results" />
+						</ee:variables>
+					</ee:transform>
+				</otherwise>
+			</choice>
+			<ee:transform doc:name="Retrieve results as payload" doc:id="5c355d8f-5a3a-4409-9a7b-0ccf2c966bf3">
+				<ee:message>
+					<ee:set-payload resource="dataweave/bulk/var-results-as-payload.dwl" />
+				</ee:message>
+			</ee:transform>
+				<!-- <error-handler>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="1766aa82-755a-4917-b502-c6bef9424b7b" type="COMPOSITE_ROUTING">
+						This will have the error thrown by the above processor
+			          <logger message="#[error.errorMessage.payload.failures['0']]" doc:name="Error failure log" />
+			          This will have the result of this (correctly executed) route
+			          <logger message="#[error.errorMessage.payload.results['1']]" doc:name="Error payload log" />
+						<ee:transform doc:name="Retrieve results as payload" doc:id="90dcfd94-0a8f-465d-bca2-42950b083d78">
+							<ee:message>
+								<ee:set-payload resource="dataweave/bulk/var-results-as-payload.dwl" />
+							</ee:message>
+						</ee:transform>
+					</on-error-continue>
+				</error-handler> -->
+			<!-- </try> -->
+		</foreach>
+	</sub-flow>
+	<sub-flow name="contract-creation-subflow" doc:id="f9641238-449e-4b06-87d0-870cfb4bccba">
+		<flow-ref doc:name="Check contract exists" doc:id="da6119de-82dc-48d0-891f-5c702a1cf596" name="check-contract-existance-subflow" />
+		<choice doc:name="contract exists?" doc:id="2cb2cc96-6e8b-4bd4-9a7e-0874a21ab17a">
+			<when expression="#[!vars.contractExists]">
+				<flow-ref doc:name="Get or create app" doc:id="01dc4205-94df-4c01-8e09-eec59646ef0d" name="create-application-subflow" />
+				<choice doc:name="Choice" doc:id="cf4aa68a-6f62-47b2-8adf-fa02d80bc1bf">
+					<when expression="#[vars.applicationId != null]">
+						<flow-ref doc:name="Create contract relation" doc:id="e0547a71-c41f-42d8-a269-5fde84f170a9"
+							name="create-app-and-api-contract-subflow" />
+						<choice doc:name="Choice" doc:id="b64ce19b-bdcb-4040-929d-f4c3c07f059a">
+							<when expression="#[attributes.statusCode == 201]">
+								<logger level="INFO" doc:name="Created and approved" doc:id="4da9091d-28f5-45a2-bbec-844ced3f51bb"
+									message='#[vars.contract.name ++ " created and approved"]' />
+								<ee:transform doc:name="results" doc:id="1e94d591-e3a2-40af-84c8-7d5442a5b8fa">
+									<ee:message>
+									</ee:message>
+									<ee:variables>
+										<ee:set-variable resource="dataweave/bulk/update-results-var-success.dwl" variableName="results" />
+									</ee:variables>
+								</ee:transform>
+							</when>
+							<otherwise>
+								<logger level="INFO" doc:name="Contract access failed" doc:id="1bde17cb-f1fa-4087-8a29-0484795cdb7f"
+									message="Contract access creation failed" />
+								<ee:transform doc:name="results" doc:id="7147bcad-2775-49a4-8c86-2ae2f8cdb55a">
+									<ee:message>
+									</ee:message>
+									<ee:variables>
+										<ee:set-variable resource="dataweave/bulk/update-results-var-failed-contract-access.dwl" variableName="results" />
+									</ee:variables>
+								</ee:transform>
+							</otherwise>
+						</choice>
+					</when>
+					<otherwise>
+						<logger level="ERROR" doc:name="Contract not created" doc:id="da072247-c010-422b-a976-da589d1791a5"
+							message="The contract was not created" />
+						<ee:transform doc:name="results" doc:id="749e9bdf-aa97-4eec-9275-92a69222d8f6">
+							<ee:message>
+							</ee:message>
+							<ee:variables>
+								<ee:set-variable resource="dataweave/bulk/update-results-var-failed-contract-creation.dwl" variableName="results" />
+							</ee:variables>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Contract exists" doc:id="eabc10c8-c32a-40e4-9526-d41358859a8b"
+					message="The contract is already created" />
+				<ee:transform doc:name="results" doc:id="411bc416-e4fa-4f9e-a615-b6cdadb8003b">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/bulk/update-results-var-success.dwl" variableName="results" />
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="check-contract-existance-subflow" doc:id="f478a421-6191-4f4f-b2a0-39d43ae34a7b">
+		<flow-ref doc:name="Get contracts by api" doc:id="8bc20811-a03e-425c-9a79-660536fffc3b" name="get-contracts-by-api-subflow" />
+		<ee:transform doc:name="contractExists" doc:id="14e9e7dc-1804-4256-9617-5a9eb4e3cfb6">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dataweave/bulk/check-contract-existance.dwl" variableName="contractExists" />
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="api-promotion-sub-flow" doc:id="3143a91d-3096-4a5f-9cd5-8379b9d2a8d4">
+		<ee:transform doc:name="apiExists" doc:id="12d681f5-92d6-4d74-822f-13f4f86ecb7c">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="apiExists"><![CDATA[%dw 2.0
+output application/java
+---
+if ((sizeOf(vars.apis)) == 0) false else
+((vars.apis.assetId contains(vars.app.apiAssetId)) and (vars.apis.assetVersion contains(vars.app.version)))]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="API exists?" doc:id="262f9890-192e-4f5f-bc33-b841e7e78e52">
+			<when expression="#[vars.apiExists]">
+				<logger level="INFO" doc:name="API exists" doc:id="c847cd7b-4db3-494c-b47e-add0d3b58829"
+					message="API already exists, no need to promote" />
+				<ee:transform doc:name="apiInstanceId" doc:id="d495a5cd-a594-44bd-a20c-b4f8762a20ab">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/bulk/save-api-instance-id.dwl" variableName="apiInstanceId" />
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="promotion request" doc:id="60b9c30a-7bf8-442e-bd19-82111e99442d">
+					<ee:message>
+						<ee:set-payload resource="dataweave/anypoint/platform/build-api-promotion-request-payload.dwl" />
+					</ee:message>
+				</ee:transform>
+				<http:request method="POST" doc:name="POST /apis" doc:id="abdcf58a-b954-4c10-b6d9-6a2d7f4cfe72"
+					config-ref="anypoint-http-request-configuration" path="/apimanager/api/v1/organizations/{orgId}/environments/{envId}/apis">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	envId : vars.environmentId,
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+					<http:response-validator>
+						<http:success-status-code-validator values="200..599" />
+					</http:response-validator>
+				</http:request>
+				<ee:transform doc:name="apiExists, apiInstanceId" doc:id="33dd9cc9-40f1-4bf1-ae96-a9f1b006d2e5">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/bulk/save-api-instance-id-after-promotion.dwl" variableName="apiInstanceId" />
+						<ee:set-variable resource="dataweave/bulk/save-api-existance-after-promotion.dwl" variableName="apiExists" />
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+
+	<sub-flow name="create-application-subflow" doc:id="7c94ce37-fb75-45bf-b014-37f9ad11453b">
+		<flow-ref doc:name="Get apps" doc:id="2adfef5b-15e8-4842-8d95-4155fff59424" name="get-apps-from-anypoint-subflow" />
+		<choice doc:name="Application exists?" doc:id="a869e1ad-0d71-4647-b87b-c8dd5d0a40ba">
+			<when expression="#[attributes.statusCode == 200 and ((sizeOf(payload.applications)) &gt; 0) and (payload.applications.name contains(vars.contract.name))]">
+				<logger level="INFO" doc:name="Application exists" doc:id="65d08084-cd37-4374-b4e6-4482d2219b9a" message="Application exists" />
+				<ee:transform doc:name="applicationId" doc:id="e8673af4-ac91-4cba-96b0-c62d44e2a958">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/bulk/save-app-id.dwl" variableName="applicationId" />
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Create application request payload" doc:id="1d5a5eda-12d1-43e7-b2ab-f8fcec80c114">
+					<ee:message>
+						<ee:set-payload resource="dataweave/anypoint/platform/build-contract-creation-request-payload.dwl" />
+					</ee:message>
+				</ee:transform>
+				<http:request path="exchange/api/v1/organizations/{orgId}/applications" method="POST" doc:name="POST /applications"
+					config-ref="anypoint-http-request-configuration">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+					<http:uri-params><![CDATA[#[output application/java
+---
+{
+	orgId : vars.organizationId
+}]]]></http:uri-params>
+					<http:query-params><![CDATA[#[output application/java
+---
+{
+	"apiInstanceId" : vars.app.apiInstanceId
+}]]]></http:query-params>
+					<http:response-validator>
+						<http:success-status-code-validator values="200..599" />
+					</http:response-validator>
+				</http:request>
+				<logger level="INFO" doc:name="Created" doc:id="ee1e334e-1dee-4e89-83fd-838f100aa8dc"
+					message='#[vars.contract.name ++ " created"]' />
+				<ee:transform doc:name="Save new applicationId and credentials" doc:id="8855c3b4-3e76-4064-9ea1-9560f3bc7e36">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable resource="dataweave/bulk/save-app-id-after-creation.dwl" variableName="applicationId" />
+						<ee:set-variable resource="dataweave/bulk/save-new-app-credentials.dwl" variableName="appCredentials" />
+					</ee:variables>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="create-app-and-api-contract-subflow" doc:id="785943d6-f961-439c-870e-750b38413f9d" >
+		<ee:transform doc:name="Request contract access payload" doc:id="f0746dcb-8b63-4404-87d5-8bfc7924235a">
+							<ee:message>
+								<ee:set-payload resource="dataweave/anypoint/platform/build-contract-access-request-payload.dwl" />
+							</ee:message>
+						</ee:transform>
+		<http:request path="exchange/api/v1/organizations/{orgId}/applications/{appId}/contracts" method="POST" doc:name="POST /contracts" config-ref="anypoint-http-request-configuration">
+							<http:headers><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'bearer ' ++ vars.loginResponse.accessToken
+}]]]></http:headers>
+							<http:uri-params><![CDATA[#[output application/java
+---
+{
+	orgId : vars.organizationId,
+	appId: vars.applicationId
+}]]]></http:uri-params>
+							<http:response-validator>
+								<http:success-status-code-validator values="200..599" />
+							</http:response-validator>
+						</http:request>
+	</sub-flow>
+</mule>

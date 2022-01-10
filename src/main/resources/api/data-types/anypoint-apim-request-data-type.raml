@@ -1,0 +1,44 @@
+#%RAML 1.0 DataType
+type: object
+properties:
+  apiAssetId:
+    type: string
+    description: The api asset id in exchange
+  assetName:
+    type: string
+    description: The exchange asset name
+    required: false
+  sourceApiInstanceId: 
+    type: string
+    description: The API id for which the contract will be created
+  groupId: 
+    type: string
+    description: The group id 
+  version:
+    type: string
+    description: The version in exchange
+  versionGroup:
+    type: string
+    description: The version group in exchange
+  contracts:
+    type: array
+    required: false
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: name
+        redirectUri:
+          type: string[]
+          description: The redirect uris
+          required: false
+        grantTypes: 
+          type: string[]
+          description: The grant types
+          required: false
+        apiEndpoints:
+          type: boolean
+          description: If api has endpoints
+          default: false
+          required: false

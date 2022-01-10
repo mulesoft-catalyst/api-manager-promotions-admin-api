@@ -1,0 +1,74 @@
+#%RAML 1.0
+baseUri: https://anypoint.mulesoft.com/mocking/api/v1/links/c4d3dd2c-0f87-4500-9a6a-d7578977c5c5/ # 
+title: anypoint-api-manager-admin-panel-api
+version: v1
+
+types:
+  AnypointAPIMRequest: !include data-types/anypoint-apim-request-data-type.raml
+  AnypointAPIMAppsCreatedResponse: !include data-types/anypoint-apim-applications-created-data-type.raml
+
+
+/applications:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: AnypointAPIMAppsCreatedResponse[]
+            example: !include examples/apim-apps-created-200-response.json
+  /{appId}:
+    uriParameters:
+      appId:
+        type: number
+        description: The application id
+    delete:
+      responses:
+        204:
+/apis:
+  /configurations:
+    /bulk-promotion:
+      post:
+        headers:
+          targetEnvironmentId:
+            type: string
+            description: The target environment id from where to create the contracts
+        body:
+          application/json:
+            type: AnypointAPIMRequest[]
+            example: !include examples/apim-admin-request.json
+        responses:
+          200:
+            body:
+              application/json:
+                example: !include examples/apim-admin-200-response.json
+          500:
+            body:
+              application/json:
+                example: !include examples/apim-admin-500-response.json
+  get:
+    headers:
+      contractSuffixToBeReplaced:
+        type: string
+        required: false
+        description: Define a string that will be replaced in the contract suffix
+      contractSuffixReplacement:
+        type: string
+        required: false
+        description: Define a string that will be used to replace the suffix
+      sourceEnvironmentId:
+        type: string
+        description: The source environment id from where to get the data from
+      apiNameIncludeIfContains:
+        type: string
+        required: false
+        description: Define a string that needs to be contained in the name of the apis to be included on the response
+      apiNameExcludeIfStartsWith:
+        type: string
+        required: false
+        description: Define a string that needs to be contained in the name of the apis to be excluded on the response
+    responses:
+      200:
+        body:
+          application/json:
+            type: AnypointAPIMRequest[]
+            example: !include examples/apim-admin-request.json    

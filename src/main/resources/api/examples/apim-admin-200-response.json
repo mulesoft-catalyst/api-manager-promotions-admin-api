@@ -1,0 +1,12 @@
+[
+  {
+    "apiInstanceId": 16209936,
+    "apiName": "alerts-api",
+    "applicationContractName": "alerts-api-stage",
+    "credentials": {
+      "clientId": "123",
+      "clientSecret": "asd"
+    },
+    "result": "Success"
+  }
+]

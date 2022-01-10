@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<sub-flow name="get-apis-and-contracts-data-sub-flow" doc:id="9bba3316-f09d-4626-afee-294d7ef586b8">
+		<logger level="INFO" doc:name="Starting" doc:id="55db751d-a436-4f26-a65f-543c3e366841" message="Starting..." />
+		<ee:transform doc:name="Variables" doc:id="31ef1360-47ff-4d53-876e-cc293e07a559">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable resource="dataweave/apis/initialize-environment-id.dwl" variableName="environmentId" />
+				<ee:set-variable resource="dataweave/apis/initialize-org-id.dwl" variableName="organizationId" />
+				<ee:set-variable resource="dataweave/apis/initialize-contract-suffix-replace.dwl" variableName="contractSuffixReplacement" />
+				<ee:set-variable resource="dataweave/apis/initialize-contract-suffix-to-be-replaced.dwl" variableName="contractSuffixToBeReplaced" />
+				<ee:set-variable resource="dataweave/apis/initialize-api-name-filter-inclusion.dwl" variableName="apiNameIncludeIfContains" />
+				<ee:set-variable resource="dataweave/apis/initialize-api-name-filter-exclusion.dwl" variableName="apiNameExcludeIfStartsWith" />
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="Authentication" doc:id="06ddf868-4fde-4bf3-bad2-4cf93b26fe58" name="authentication-subflow"/>
+		<flow-ref doc:name="Get APIs" doc:id="61a14ad8-ee31-4ee9-a33a-51d16e3a13e4" name="get-apis-subflow"/>
+		<choice doc:name="Do we have apis?" doc:id="42981959-3acf-4694-899d-b584342eeb07" >
+			<when expression="#[sizeOf(payload) &gt; 0]">
+				<ee:transform doc:name="response" doc:id="82229c03-f55b-4f2b-9cf8-438ecde8482c" >
+					<ee:message >
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable resource="dataweave/apis/initialize-response-var.dwl" variableName="response" />
+					</ee:variables>
+				</ee:transform>
+				<ee:transform doc:name="apiIdsCollection" doc:id="67328473-14f9-4bf8-9e9f-c7dcccb21d0c">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable resource="dataweave/apis/get-apis-collection.dwl" variableName="apis" />
+						<ee:set-variable resource="dataweave/apis/get-apis-ids-collection.dwl" variableName="apiIdsCollection" />
+					</ee:variables>
+				</ee:transform>
+				<parallel-foreach doc:name="For Each API" doc:id="31b1b79e-cbf1-4a1a-8886-e0a9ddbfbdcb" collection="#[vars.apiIdsCollection]">
+					<ee:transform doc:name="apiProcessing, apiInstanceId" doc:id="b5b90678-74de-4318-b1ef-a38663b1de28" >
+						<ee:message >
+						</ee:message>
+						<ee:variables >
+							<ee:set-variable resource="dataweave/apis/save-api-instance-id.dwl" variableName="apiInstanceId" />
+							<ee:set-variable resource="dataweave/apis/save-api-being-processed-as-var.dwl" variableName="apiProcessing" />
+						</ee:variables>
+					</ee:transform>
+					<flow-ref doc:name="Get contract data" doc:id="887adaad-0cf3-46d7-bb25-c73497d327d0" name="get-contracts-by-api-subflow"/>
+					<ee:transform doc:name="response" doc:id="efa4b373-a3c6-4c22-9748-afee9ba7ff45" >
+						<ee:message >
+							<ee:set-payload resource="dataweave/apis/aggregate-response.dwl"/>
+						</ee:message>
+					</ee:transform>
+				</parallel-foreach>
+				<ee:transform doc:name="response as JSON" doc:id="510f3c7d-8fec-4e71-8498-858c56d32674" >
+					<ee:message >
+						<ee:set-payload resource="dataweave/apis/return-response-as-json-payload.dwl" />
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="No apis" doc:id="92c9e7cb-8f37-4591-811f-9fc72ea1023c" message="No apis found"/>
+				<ee:transform doc:name="Response message" doc:id="deb4ae01-272e-4760-9d10-01e104f0fcf3" >
+					<ee:message >
+						<ee:set-payload resource="dataweave/apis/no-apis-found-response.dwl" />
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Finish" doc:id="55c12ffa-d3fb-4c32-9530-f39bad65f14e" message="Finish"/>
+	</sub-flow>	
+	
+</mule>
